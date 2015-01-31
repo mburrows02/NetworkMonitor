@@ -11,9 +11,12 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
 
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -22,7 +25,9 @@ import java.io.IOException;
 public class MainActivity extends ActionBarActivity {
     private Process captureProc;
     private static final String TAG = "NetworkMonitor";
-    private static final String FILE_DIR = "/sdcard/netlogs";//Environment.getExternalStorageDirectory() + "/netlogs/";
+    private static final int PACKETS = 20;
+    private static final String FILE_DIR = "/sdcard/netlogs/";
+    //TODO don't hard-code: Environment.getExternalStorageDirectory() + "/netlogs/";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,19 +73,16 @@ public class MainActivity extends ActionBarActivity {
 
     private void startCapture() {
         String filename = FILE_DIR + "tcpdump_" + System.currentTimeMillis() + ".pcap";
-        String command = "tcpdump -c 1 -w " + filename + " \'tcp port 80 and " +
+        String command = "tcpdump -c " + PACKETS + " -w " + filename + " \'tcp port 80 and " +
                 "(((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)\'";
-        //With example filename:
-        //tcpdump -c 1 -U -w /storage/emulated/0/netlogs/tcpdump_1422728327251.pcap 'tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)'
         Log.v(TAG, "Starting capture: " + command);
-        Runtime rt = Runtime.getRuntime();
         try {
-            Process proc = rt.exec("su");
-            //Process proc = new ProcessBuilder().command("su").start();
-            DataOutputStream os = new DataOutputStream(proc.getOutputStream());
+            captureProc = new ProcessBuilder().command("su").start();
+            DataOutputStream os = new DataOutputStream(captureProc.getOutputStream());
+            //DataInputStream is = new DataInputStream(captureProc.getInputStream());
             os.writeBytes(command + "\n");
-            os.writeBytes("exit\n");
             os.flush();
+
             Log.v(TAG, "Capture started");
         } catch (IOException e) {
             Log.e(TAG, "IOException while starting capture", e);
@@ -93,6 +95,7 @@ public class MainActivity extends ActionBarActivity {
         if (captureProc != null) {
             try {
                 DataOutputStream os = new DataOutputStream(captureProc.getOutputStream());
+                os.writeBytes("\u0003\n");
                 os.writeBytes("exit\n");
                 os.flush();
             } catch (IOException e) {
@@ -126,6 +129,63 @@ public class MainActivity extends ActionBarActivity {
 
             ListView list = (ListView)getActivity().findViewById(R.id.file_listview);
             list.setAdapter(new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_activated_1, files));
+            list.setOnItemClickListener(fileClickHandler);
         }
+
+        private AdapterView.OnItemClickListener fileClickHandler = new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String file = FILE_DIR + ((TextView) view).getText();
+                Bundle bundle = new Bundle();
+                bundle.putString("filename", file);
+                Fragment newFrag = new PacketListFragment();
+                newFrag.setArguments(bundle);
+
+                getActivity().getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.container, newFrag)
+                        .commit();
+            }
+        };
+    }
+
+    public static class PacketListFragment extends Fragment {
+        private String openFile;
+
+        public PacketListFragment() {
+
+        }
+
+        @Override
+        public void setArguments(Bundle args) {
+            super.setArguments(args);
+            openFile = args.getString("filename");
+        }
+
+        @Override
+        public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                                 Bundle savedInstanceState) {
+            View rootView = inflater.inflate(R.layout.fragment_packet_list, container, false);
+            return rootView;
+        }
+
+        @Override
+        public void onActivityCreated(Bundle savedInstanceState) {
+            super.onActivityCreated(savedInstanceState);
+
+            //TODO load file and parse
+
+            String[] packets = new String[]{"Hello", "World", openFile};
+
+            ListView list = (ListView)getActivity().findViewById(R.id.packet_listview);
+            list.setAdapter(new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_activated_1, packets));
+            list.setOnItemClickListener(packetClickHandler);
+        }
+
+        private AdapterView.OnItemClickListener packetClickHandler = new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                //TODO
+            }
+        };
     }
 }
