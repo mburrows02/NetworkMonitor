@@ -1,7 +1,5 @@
 package ca.carleton.michelleburrows.networkmonitor;
 
-import android.app.ListFragment;
-import android.os.Environment;
 import android.os.StrictMode;
 import android.support.v7.app.ActionBarActivity;
 import android.support.v4.app.Fragment;
@@ -22,24 +20,31 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import edu.gatech.sjpcap.IPPacket;
 import edu.gatech.sjpcap.Packet;
 import edu.gatech.sjpcap.PcapParser;
 import edu.gatech.sjpcap.TCPPacket;
 
-import org.apache.http.HttpException;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
-import org.apache.http.impl.io.DefaultHttpRequestParser;
-import org.apache.http.impl.io.DefaultHttpResponseParser;
-import org.apache.http.impl.io.HttpTransportMetricsImpl;
-import org.apache.http.impl.io.SessionInputBufferImpl;
+import org.apache.commons.io.IOUtils;
+import org.apache.httpcopy.Header;
+import org.apache.httpcopy.HttpEntity;
+import org.apache.httpcopy.HttpException;
+import org.apache.httpcopy.HttpMessage;
+import org.apache.httpcopy.HttpRequest;
+import org.apache.httpcopy.HttpResponse;
+import org.apache.httpcopy.impl.io.DefaultHttpRequestParser;
+import org.apache.httpcopy.impl.io.DefaultHttpResponseParser;
+import org.apache.httpcopy.impl.io.HttpTransportMetricsImpl;
+import org.apache.httpcopy.impl.io.SessionInputBufferImpl;
 
 
 public class MainActivity extends ActionBarActivity {
@@ -48,6 +53,14 @@ public class MainActivity extends ActionBarActivity {
     private static final int PACKETS = 20;
     private static final String FILE_DIR = "/sdcard/netlogs/";
     //TODO don't hard-code: Environment.getExternalStorageDirectory() + "/netlogs/";
+    private static final String IS_REQUEST = "nm_isRequest";
+    private static final String SOURCE = "nm_src";
+    private static final String DESTINATION = "nm_dest";
+    private static final String PATH = "nm_path";
+    private static final String METHOD = "nm_method";
+    private static final String STATUS = "nm_status";
+    private static final String CONTENT = "nm_content";
+    private static final String HEADER_PREFIX = "h_";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -172,6 +185,7 @@ public class MainActivity extends ActionBarActivity {
 
     public static class PacketListFragment extends Fragment {
         private String openFile;
+        private List<HashMap<String, String>> messageList;
 
         public PacketListFragment() {
 
@@ -196,6 +210,7 @@ public class MainActivity extends ActionBarActivity {
 
             Log.v(TAG, "Parsing " + openFile);
             List<String> packetList = new ArrayList<String>();
+            messageList = new ArrayList<HashMap<String, String>>();
 
             PcapParser parser = new PcapParser();
             parser.openFile(openFile);
@@ -213,37 +228,61 @@ public class MainActivity extends ActionBarActivity {
                 Log.v(TAG, "\t" + type + host);
 
                 if (packet instanceof TCPPacket) {
+                    HashMap<String, String> messageMap = new HashMap<String, String>();
+                    messageMap.put(IS_REQUEST, String.valueOf(outgoing));
+                    messageMap.put(SOURCE, ipPack.src_ip.getCanonicalHostName());
+                    messageMap.put(DESTINATION, ipPack.dst_ip.getCanonicalHostName());
+
                     TCPPacket tcpPack = (TCPPacket) ipPack;
                     byte[] data = tcpPack.data;
+                    SessionInputBufferImpl inBuffer = new SessionInputBufferImpl(new HttpTransportMetricsImpl(), data.length);
+                    InputStream inStream = new ByteArrayInputStream(data);
+                    inBuffer.bind(inStream);
                     if (outgoing) {
-                        SessionInputBufferImpl inBuffer = new SessionInputBufferImpl(new HttpTransportMetricsImpl(), data.length);
-                        InputStream inStream = new ByteArrayInputStream(data);
-                        inBuffer.bind(inStream);
                         DefaultHttpRequestParser reqParser = new DefaultHttpRequestParser(inBuffer);
                         try {
                             HttpRequest req = (HttpRequest) reqParser.parse();
-                            packetList.add(req.getRequestLine().getMethod() + ": " + req.getRequestLine().getUri());
+                            packetList.add(host + ": " + req.getRequestLine().getMethod() + " " + req.getRequestLine().getUri());
                             Log.v(TAG, "Request line: " + req.getRequestLine().toString());
+
+                            messageMap.put(PATH, req.getRequestLine().getUri());
+                            messageMap.put(METHOD, req.getRequestLine().getMethod());
+                            for (Header h : req.getAllHeaders()) {
+                                messageMap.put(HEADER_PREFIX + h.getName(), h.getValue());
+                            }
                         } catch (IOException e) {
                             e.printStackTrace();
                         } catch (HttpException e) {
                             e.printStackTrace();
                         }
                     } else {
-                        SessionInputBufferImpl inBuffer = new SessionInputBufferImpl(new HttpTransportMetricsImpl(), data.length);
-                        InputStream inStream = new ByteArrayInputStream(data);
-                        inBuffer.bind(inStream);
                         DefaultHttpResponseParser respParser = new DefaultHttpResponseParser(inBuffer);
                         try {
                             HttpResponse resp = (HttpResponse) respParser.parse();
-                            packetList.add(resp.getStatusLine().getStatusCode() + " " + resp.getStatusLine().getReasonPhrase());
+                            String status = resp.getStatusLine().getStatusCode() + " " + resp.getStatusLine().getReasonPhrase();
+                            packetList.add(host + ": " + status);
                             Log.v(TAG, "Status line: " + resp.getStatusLine().toString());
+
+                            messageMap.put(STATUS, status);
+                            for (Header h : resp.getAllHeaders()) {
+                                messageMap.put(HEADER_PREFIX + h.getName(), h.getValue());
+                            }
+                            StringWriter writer = new StringWriter();
+                            HttpEntity entity = resp.getEntity();
+                            if (entity != null) {
+                                String encoding = entity.getContentEncoding().getValue();
+                                IOUtils.copy(entity.getContent(), writer, encoding);
+                                String contentString = writer.toString();
+                                messageMap.put(CONTENT, contentString);
+                            }
                         } catch (IOException e) {
                             e.printStackTrace();
                         } catch (HttpException e) {
                             e.printStackTrace();
                         }
                     }
+
+                    messageList.add(messageMap);
                 }
 
                 //packetList.add(type + host);
@@ -260,7 +299,14 @@ public class MainActivity extends ActionBarActivity {
         private AdapterView.OnItemClickListener packetClickHandler = new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                //TODO
+                Bundle bundle = new Bundle();
+                bundle.putSerializable("message", messageList.get(position));
+                Fragment newFrag = new PacketListFragment();
+                newFrag.setArguments(bundle);
+
+                getActivity().getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.container, newFrag)
+                        .commit();
             }
         };
 
@@ -274,6 +320,42 @@ public class MainActivity extends ActionBarActivity {
             } catch (SocketException e) {
                 return false;
             }
+        }
+    }
+
+    public static class MessageDetailFragment extends Fragment {
+        private HashMap<String, String> message;
+
+        public MessageDetailFragment() {
+
+        }
+
+        @Override
+        public void setArguments(Bundle args) {
+            super.setArguments(args);
+            message = (HashMap<String, String>) args.getSerializable("message");
+        }
+
+        @Override
+        public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                                 Bundle savedInstanceState) {
+            View rootView = inflater.inflate(R.layout.fragment_message_detail, container, false);
+            return rootView;
+        }
+
+        @Override
+        public void onActivityCreated(Bundle savedInstanceState) {
+            super.onActivityCreated(savedInstanceState);
+            List<String> detailList = new ArrayList<String>();
+            for (Map.Entry<String, String> entry : message.entrySet()) {
+                if (entry.getKey().startsWith(HEADER_PREFIX)) {
+                    detailList.add(entry.getKey().substring(2) + ": " + entry.getValue());
+                }
+            }
+            String[] messageDetails = detailList.toArray(new String[detailList.size()]);
+
+            ListView list = (ListView)getActivity().findViewById(R.id.message_details_listview);
+            list.setAdapter(new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_activated_1, messageDetails));
         }
     }
 }

@@ -24,8 +24,6 @@ android {
 
 dependencies {
     compile 'com.android.support:appcompat-v7:21.0.3'
+    compile 'commons-io:commons-io:+'
     compile files('libs/sjpcap.jar')
-    compile('org.apache.httpcomponents:httpcore:4.+') {
-        exclude module: "httpclient"
-    }
 }
