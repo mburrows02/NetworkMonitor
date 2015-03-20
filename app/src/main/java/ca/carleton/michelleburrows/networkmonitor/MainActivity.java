@@ -53,6 +53,7 @@ public class MainActivity extends ActionBarActivity {
     private static final int PACKETS = 20;
     private static final String FILE_DIR = "/sdcard/netlogs/";
     //TODO don't hard-code: Environment.getExternalStorageDirectory() + "/netlogs/";
+    private static final int TRUNCATE_POINT = 100;
     private static final String IS_REQUEST = "nm_isRequest";
     private static final String SOURCE = "nm_src";
     private static final String DESTINATION = "nm_dest";
@@ -159,7 +160,6 @@ public class MainActivity extends ActionBarActivity {
             super.onActivityCreated(savedInstanceState);
             File dir = new File(FILE_DIR);
             String[] files = dir.list();
-            Log.v(TAG, files.toString());
 
             ListView list = (ListView)getActivity().findViewById(R.id.file_listview);
             list.setAdapter(new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_activated_1, files));
@@ -178,6 +178,7 @@ public class MainActivity extends ActionBarActivity {
 
                 getActivity().getSupportFragmentManager().beginTransaction()
                         .replace(R.id.container, newFrag)
+                        .addToBackStack(null)
                         .commit();
             }
         };
@@ -290,7 +291,6 @@ public class MainActivity extends ActionBarActivity {
             }
 
             String[] packets = packetList.toArray(new String[packetList.size()]);
-
             ListView list = (ListView)getActivity().findViewById(R.id.packet_listview);
             list.setAdapter(new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_activated_1, packets));
             list.setOnItemClickListener(packetClickHandler);
@@ -301,11 +301,12 @@ public class MainActivity extends ActionBarActivity {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Bundle bundle = new Bundle();
                 bundle.putSerializable("message", messageList.get(position));
-                Fragment newFrag = new PacketListFragment();
+                Fragment newFrag = new MessageDetailFragment();
                 newFrag.setArguments(bundle);
 
                 getActivity().getSupportFragmentManager().beginTransaction()
                         .replace(R.id.container, newFrag)
+                        .addToBackStack(null)
                         .commit();
             }
         };
