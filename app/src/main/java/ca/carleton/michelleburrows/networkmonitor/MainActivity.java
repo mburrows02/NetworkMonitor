@@ -41,6 +41,7 @@ import org.apache.httpcopy.HttpException;
 import org.apache.httpcopy.HttpMessage;
 import org.apache.httpcopy.HttpRequest;
 import org.apache.httpcopy.HttpResponse;
+import org.apache.httpcopy.RequestLine;
 import org.apache.httpcopy.impl.io.DefaultHttpRequestParser;
 import org.apache.httpcopy.impl.io.DefaultHttpResponseParser;
 import org.apache.httpcopy.impl.io.HttpTransportMetricsImpl;
@@ -243,11 +244,16 @@ public class MainActivity extends ActionBarActivity {
                         DefaultHttpRequestParser reqParser = new DefaultHttpRequestParser(inBuffer);
                         try {
                             HttpRequest req = (HttpRequest) reqParser.parse();
-                            packetList.add(host + ": " + req.getRequestLine().getMethod() + " " + req.getRequestLine().getUri());
-                            Log.v(TAG, "Request line: " + req.getRequestLine().toString());
+                            RequestLine reqLine = req.getRequestLine();
+                            String path = reqLine.getUri();
+                            if (path.length() > TRUNCATE_POINT) {
+                                path = path.substring(0, TRUNCATE_POINT) + "...";
+                            }
+                            packetList.add(host + ": " + reqLine.getMethod() + " " + path);
+                            Log.v(TAG, "Request line: " + reqLine.toString());
 
-                            messageMap.put(PATH, req.getRequestLine().getUri());
-                            messageMap.put(METHOD, req.getRequestLine().getMethod());
+                            messageMap.put(PATH, path);
+                            messageMap.put(METHOD, reqLine.getMethod());
                             for (Header h : req.getAllHeaders()) {
                                 messageMap.put(HEADER_PREFIX + h.getName(), h.getValue());
                             }
