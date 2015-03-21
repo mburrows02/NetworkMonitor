@@ -1,0 +1,27 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+    <ImageView
+        android:id="@+id/accordion_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/expander_open"/>
+    <TextView
+        android:id="@+id/accordion_header"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_toRightOf="@id/accordion_button"
+        android:layout_alignBottom="@id/accordion_button"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:text="Cookies" />
+    <TextView
+        android:id="@+id/accordion_content"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/accordion_header"
+        android:layout_alignLeft="@id/accordion_header"
+        android:visibility="gone"
+        android:text="Lorum ipsum dolor sit amet, consectetur adipiscing elit.\nDuis egestas eget enim in scelerisque.\nIn a porttitor odio. "/>
+</RelativeLayout>
