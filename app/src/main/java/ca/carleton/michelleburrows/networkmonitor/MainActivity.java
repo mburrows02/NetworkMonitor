@@ -18,14 +18,19 @@ public class MainActivity extends ActionBarActivity {
     public static final String FILE_DIR = "/sdcard/netlogs/";
     //TODO don't hard-code: Environment.getExternalStorageDirectory() + "/netlogs/";
     public static final int TRUNCATE_POINT = 100;
-    public static final String IS_REQUEST = "nm_isRequest";
-    public static final String SOURCE = "nm_src";
-    public static final String DESTINATION = "nm_dest";
+    //public static final String IS_REQUEST = "nm_isRequest";
+    //public static final String SOURCE = "nm_src";
+   // public static final String DESTINATION = "nm_dest";
+
+    public static final String HOST = "nm_host";
     public static final String PATH = "nm_path";
     public static final String METHOD = "nm_method";
     public static final String STATUS = "nm_status";
     public static final String CONTENT = "nm_content";
-    public static final String HEADER_PREFIX = "h_";
+    public static final String REQ_HEADER = "qh_";
+    public static final String RSP_HEADER = "ph_";
+
+    //public static final String HEADER_PREFIX = "h_";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

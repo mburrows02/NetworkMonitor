@@ -17,6 +17,11 @@ import java.util.Map;
  * Created by Michelle on 3/21/2015.
  */
 public class MessageDetailFragment extends Fragment {
+    private static final String GENERAL = "General";
+    private static final String REQ_HEAD = "Request Headers";
+    private static final String RSP_HEAD = "Response Headers";
+    private static final String RSP_CONTENT = "Response Content";
+    private static final String COOKIES = "Cookies";
     private HashMap<String, String> message;
 
     public MessageDetailFragment() {
@@ -39,11 +44,49 @@ public class MessageDetailFragment extends Fragment {
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        List<AccordionItem> detailList = new ArrayList<AccordionItem>();
+
+        String general = "";
+        String requestHeaders = "";
+        String responseHeaders = "";
+        String responseContent = "";
+        String cookies = "";
+
         for (Map.Entry<String, String> entry : message.entrySet()) {
-            if (entry.getKey().startsWith(MainActivity.HEADER_PREFIX)) {
-                detailList.add(new AccordionItem(entry.getKey().substring(2), entry.getValue()));
+            String key = entry.getKey();
+            String value = entry.getValue();
+            String line = key.substring(3) + ": " + value + "\n";
+            if (key.startsWith(MainActivity.REQ_HEADER)) {
+                if (key.contains("Cookie")) {
+                    String[] pairs = value.split(";");
+                    for (String str : pairs) {
+                        cookies += str + "\n";
+                    }
+                } else {
+                    requestHeaders += line;
+                }
+            } else if (key.startsWith(MainActivity.RSP_HEADER)) {
+                responseHeaders += line;
+            } else if (key.equals(MainActivity.CONTENT)) {
+                responseContent += value;
+            } else {
+                general += line;
             }
+        }
+        List<AccordionItem> detailList = new ArrayList<AccordionItem>();
+        if (!general.isEmpty()) {
+            detailList.add(new AccordionItem(GENERAL, general));
+        }
+        if (!requestHeaders.isEmpty()) {
+            detailList.add(new AccordionItem(REQ_HEAD, requestHeaders));
+        }
+        if (!responseHeaders.isEmpty()) {
+            detailList.add(new AccordionItem(RSP_HEAD, responseHeaders));
+        }
+        if (!responseContent.isEmpty()) {
+            detailList.add(new AccordionItem(RSP_CONTENT, responseContent));
+        }
+        if (!cookies.isEmpty()) {
+            detailList.add(new AccordionItem(COOKIES, cookies));
         }
         AccordionItem[] messageDetails = detailList.toArray(new AccordionItem[detailList.size()]);
 

@@ -44,6 +44,7 @@ import edu.gatech.sjpcap.TCPPacket;
 public class MessageListFragment extends Fragment {
     private String openFile;
     private List<HashMap<String, String>> messageList;
+    private List<Integer> openReqIndices;
 
     public MessageListFragment() {
 
@@ -67,8 +68,9 @@ public class MessageListFragment extends Fragment {
         super.onActivityCreated(savedInstanceState);
 
         Log.v(MainActivity.TAG, "Parsing " + openFile);
-        List<String> packetList = new ArrayList<String>();
+        List<MessageSummary> packetList = new ArrayList<MessageSummary>();
         messageList = new ArrayList<HashMap<String, String>>();
+        openReqIndices = new ArrayList<Integer>();
 
         PcapParser parser = new PcapParser();
         parser.openFile(openFile);
@@ -86,10 +88,36 @@ public class MessageListFragment extends Fragment {
             Log.v(MainActivity.TAG, "\t" + type + host);
 
             if (packet instanceof TCPPacket) {
-                HashMap<String, String> messageMap = new HashMap<String, String>();
-                messageMap.put(MainActivity.IS_REQUEST, String.valueOf(outgoing));
-                messageMap.put(MainActivity.SOURCE, ipPack.src_ip.getHostAddress());
-                messageMap.put(MainActivity.DESTINATION, ipPack.dst_ip.getHostAddress());
+                HashMap<String, String> messageMap = null;
+                MessageSummary msgSummary = null;
+                int reqIndex = -1;
+                if (!outgoing) {
+                    for (int index : openReqIndices) {
+                        HashMap<String, String> mm = messageList.get(index);
+                        if (mm.get(MainActivity.HOST).equals(host)) {
+                            messageMap = mm;
+                            msgSummary = packetList.get(index);
+                            reqIndex = index;
+                            break;
+                        }
+                    }
+                    if (reqIndex != -1) {
+                        openReqIndices.remove(Integer.valueOf(reqIndex));
+                    }
+                }
+
+                if (messageMap == null)  {
+                    messageMap = new HashMap<String, String>();
+                    messageMap.put(MainActivity.HOST, host);
+                    msgSummary = new MessageSummary();
+                    packetList.add(msgSummary);
+                    if (outgoing) {
+                        openReqIndices.add(packetList.size() - 1);
+                    }
+                }
+                //messageMap.put(MainActivity.IS_REQUEST, String.valueOf(outgoing));
+                //messageMap.put(MainActivity.SOURCE, ipPack.src_ip.getHostAddress());
+                //messageMap.put(MainActivity.DESTINATION, ipPack.dst_ip.getHostAddress());
 
                 TCPPacket tcpPack = (TCPPacket) ipPack;
                 byte[] data = tcpPack.data;
@@ -105,13 +133,15 @@ public class MessageListFragment extends Fragment {
                         if (path.length() > MainActivity.TRUNCATE_POINT) {
                             path = path.substring(0, MainActivity.TRUNCATE_POINT) + "...";
                         }
-                        packetList.add(host + ": " + reqLine.getMethod() + " " + path);
+                        msgSummary.setMethod(reqLine.getMethod());
+                        msgSummary.setPath(path);
+                        //packetList.add(host + ": " + reqLine.getMethod() + " " + path);
                         Log.v(MainActivity.TAG, "Request line: " + reqLine.toString());
 
                         messageMap.put(MainActivity.PATH, path);
                         messageMap.put(MainActivity.METHOD, reqLine.getMethod());
                         for (Header h : req.getAllHeaders()) {
-                            messageMap.put(MainActivity.HEADER_PREFIX + h.getName(), h.getValue());
+                            messageMap.put(MainActivity.REQ_HEADER + h.getName(), h.getValue());
                         }
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -123,12 +153,13 @@ public class MessageListFragment extends Fragment {
                     try {
                         HttpResponse resp = (HttpResponse) respParser.parse();
                         String status = resp.getStatusLine().getStatusCode() + " " + resp.getStatusLine().getReasonPhrase();
-                        packetList.add(host + ": " + status);
+                        msgSummary.setStatus(status);
+                        //packetList.add(host + ": " + status);
                         Log.v(MainActivity.TAG, "Status line: " + resp.getStatusLine().toString());
 
                         messageMap.put(MainActivity.STATUS, status);
                         for (Header h : resp.getAllHeaders()) {
-                            messageMap.put(MainActivity.HEADER_PREFIX + h.getName(), h.getValue());
+                            messageMap.put(MainActivity.RSP_HEADER + h.getName(), h.getValue());
                         }
                         StringWriter writer = new StringWriter();
                         HttpEntity entity = resp.getEntity();
@@ -151,9 +182,9 @@ public class MessageListFragment extends Fragment {
             packet = parser.getPacket();
         }
 
-        String[] packets = packetList.toArray(new String[packetList.size()]);
+        MessageSummary[] packets = packetList.toArray(new MessageSummary[packetList.size()]);
         ListView list = (ListView)getActivity().findViewById(R.id.packet_listview);
-        list.setAdapter(new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_activated_1, packets));
+        list.setAdapter(new TwoLineListAdapter(getActivity(), packets));
         list.setOnItemClickListener(packetClickHandler);
     }
 
