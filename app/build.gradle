@@ -2,7 +2,11 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion 21
-    buildToolsVersion "21.1.2"
+    buildToolsVersion '22.0.1'
+    packagingOptions {
+        exclude 'pom.xml'
+        exclude 'README.md'
+    }
 
     defaultConfig {
         applicationId "ca.carleton.michelleburrows.networkmonitor"
@@ -25,5 +29,6 @@ android {
 dependencies {
     compile 'com.android.support:appcompat-v7:21.0.3'
     compile 'commons-io:commons-io:+'
-    compile files('libs/sjpcap.jar')
+    compile files('libs/pkts-core.jar')
+    compile files('libs/pkts-buffers.jar')
 }

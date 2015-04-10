@@ -7,7 +7,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
 import org.apache.commons.io.IOUtils;
@@ -23,6 +22,7 @@ import org.apache.httpcopy.impl.io.HttpTransportMetricsImpl;
 import org.apache.httpcopy.impl.io.SessionInputBufferImpl;
 
 import java.io.ByteArrayInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
@@ -33,10 +33,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import edu.gatech.sjpcap.IPPacket;
-import edu.gatech.sjpcap.Packet;
-import edu.gatech.sjpcap.PcapParser;
-import edu.gatech.sjpcap.TCPPacket;
+import io.pkts.Pcap;
 
 /**
  * Created by Michelle on 3/21/2015.
@@ -72,22 +69,17 @@ public class MessageListFragment extends Fragment {
         messageList = new ArrayList<HashMap<String, String>>();
         openReqIndices = new ArrayList<Integer>();
 
-        PcapParser parser = new PcapParser();
-        parser.openFile(openFile);
-        Packet packet = parser.getPacket();
-        while (packet != Packet.EOF) {
-            Log.v(MainActivity.TAG, "Parsing packet " + packetList.size());
-            if (!(packet instanceof IPPacket)) {
-                packet = parser.getPacket();
-                continue;
-            }
-            IPPacket ipPack = (IPPacket) packet;
-            boolean outgoing = isLocalAddress(ipPack.src_ip);
-            String host = outgoing?ipPack.dst_ip.getHostAddress():ipPack.src_ip.getHostAddress();
-            String type = outgoing?"Request to: ":"Response from: ";
-            Log.v(MainActivity.TAG, "\t" + type + host);
+        try {
+            Pcap pcap = Pcap.openStream(openFile);
+            ReassemblingPacketHandler handler = new ReassemblingPacketHandler();
+            pcap.loop(handler);
+            for (ReassembledPacket packet : handler.packets) {
+                Log.v(MainActivity.TAG, "Parsing packet " + packetList.size());
+                boolean outgoing = isLocalAddress(InetAddress.getByName(packet.getSrc()));
+                String host = outgoing ? packet.getDst() : packet.getSrc();
+                String type = outgoing ? "Request to: " : "Response from: ";
+                Log.v(MainActivity.TAG, "\t" + type + host);
 
-            if (packet instanceof TCPPacket) {
                 HashMap<String, String> messageMap = null;
                 MessageSummary msgSummary = null;
                 int reqIndex = -1;
@@ -106,7 +98,7 @@ public class MessageListFragment extends Fragment {
                     }
                 }
 
-                if (messageMap == null)  {
+                if (messageMap == null) {
                     messageMap = new HashMap<String, String>();
                     messageMap.put(MainActivity.HOST, host);
                     msgSummary = new MessageSummary();
@@ -115,12 +107,13 @@ public class MessageListFragment extends Fragment {
                         openReqIndices.add(packetList.size() - 1);
                     }
                 }
-                //messageMap.put(MainActivity.IS_REQUEST, String.valueOf(outgoing));
-                //messageMap.put(MainActivity.SOURCE, ipPack.src_ip.getHostAddress());
-                //messageMap.put(MainActivity.DESTINATION, ipPack.dst_ip.getHostAddress());
 
-                TCPPacket tcpPack = (TCPPacket) ipPack;
-                byte[] data = tcpPack.data;
+                byte[] data = packet.getData();
+                /*try {
+                    Log.v(MainActivity.TAG, IOUtils.toString(data, "US-ASCII"));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }*/
                 SessionInputBufferImpl inBuffer = new SessionInputBufferImpl(new HttpTransportMetricsImpl(), data.length);
                 InputStream inStream = new ByteArrayInputStream(data);
                 inBuffer.bind(inStream);
@@ -135,7 +128,6 @@ public class MessageListFragment extends Fragment {
                         }
                         msgSummary.setMethod(reqLine.getMethod());
                         msgSummary.setPath(path);
-                        //packetList.add(host + ": " + reqLine.getMethod() + " " + path);
                         Log.v(MainActivity.TAG, "Request line: " + reqLine.toString());
 
                         messageMap.put(MainActivity.PATH, path);
@@ -154,7 +146,6 @@ public class MessageListFragment extends Fragment {
                         HttpResponse resp = (HttpResponse) respParser.parse();
                         String status = resp.getStatusLine().getStatusCode() + " " + resp.getStatusLine().getReasonPhrase();
                         msgSummary.setStatus(status);
-                        //packetList.add(host + ": " + status);
                         Log.v(MainActivity.TAG, "Status line: " + resp.getStatusLine().toString());
 
                         messageMap.put(MainActivity.STATUS, status);
@@ -165,9 +156,15 @@ public class MessageListFragment extends Fragment {
                         HttpEntity entity = resp.getEntity();
                         if (entity != null) {
                             String encoding = entity.getContentEncoding().getValue();
-                            IOUtils.copy(entity.getContent(), writer, encoding);
-                            String contentString = writer.toString();
+                            byte[] buff = new byte[(int) entity.getContentLength()];
+                            entity.getContent().read(buff);
+                            String contentString = IOUtils.toString(buff, encoding);
+                            Log.v(MainActivity.TAG, "Response contents: " + contentString); //TODO ensure this is removed
+                            //IOUtils.copy(entity.getContent(), writer, encoding);
+                            //String contentString = writer.toString();
                             messageMap.put(MainActivity.CONTENT, contentString);
+                        } else {
+                            Log.v(MainActivity.TAG, "Entity is null!");
                         }
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -178,10 +175,11 @@ public class MessageListFragment extends Fragment {
 
                 messageList.add(messageMap);
             }
-
-            packet = parser.getPacket();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-
         MessageSummary[] packets = packetList.toArray(new MessageSummary[packetList.size()]);
         ListView list = (ListView)getActivity().findViewById(R.id.packet_listview);
         list.setAdapter(new TwoLineListAdapter(getActivity(), packets));
