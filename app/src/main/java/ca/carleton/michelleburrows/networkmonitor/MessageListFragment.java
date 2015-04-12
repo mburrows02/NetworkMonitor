@@ -100,6 +100,7 @@ public class MessageListFragment extends Fragment {
 
                 if (messageMap == null) {
                     messageMap = new HashMap<String, String>();
+                    messageList.add(messageMap);
                     messageMap.put(MainActivity.HOST, host);
                     msgSummary = new MessageSummary();
                     packetList.add(msgSummary);
@@ -173,7 +174,6 @@ public class MessageListFragment extends Fragment {
                     }
                 }
 
-                messageList.add(messageMap);
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
