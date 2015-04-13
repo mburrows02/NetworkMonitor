@@ -26,13 +26,16 @@ public class ReassemblingPacketHandler implements PacketHandler {
         }
         TCPPacket pkt = (TCPPacket) arg0.getPacket(Protocol.TCP);
         int id = pkt.getIdentification();
-        for (ReassembledPacket p : packets) {
-            if (p.getNextId() == id) {
+        //for (ReassembledPacket p : packets) {
+        if (packets.size() > 0) {
+            ReassembledPacket lastPacket = packets.get(packets.size() - 1);
+            if (lastPacket.getNextId() == id) {
                 System.out.println("Adding to existing packet: id " + id);
-                p.addData(pkt.getPayload().getArray());
+                lastPacket.addData(pkt.getPayload().getArray());
                 return;
             }
         }
+        //}
         System.out.println("Creating new packet: id " + id);
         byte[] data = pkt.getPayload().getArray();
         ReassembledPacket packet = new ReassembledPacket(id, pkt.getSourceIP(), pkt.getDestinationIP(), data);

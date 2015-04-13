@@ -31,4 +31,5 @@ dependencies {
     compile 'commons-io:commons-io:+'
     compile files('libs/pkts-core.jar')
     compile files('libs/pkts-buffers.jar')
+    compile files('libs/RootShell.jar')
 }

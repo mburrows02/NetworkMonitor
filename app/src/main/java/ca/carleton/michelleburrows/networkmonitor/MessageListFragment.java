@@ -153,6 +153,7 @@ public class MessageListFragment extends Fragment {
                         for (Header h : resp.getAllHeaders()) {
                             messageMap.put(MainActivity.RSP_HEADER + h.getName(), h.getValue());
                         }
+                        //Log.v(MainActivity.TAG, IOUtils.toString(data, "UTF-8"));
                         StringWriter writer = new StringWriter();
                         HttpEntity entity = resp.getEntity();
                         if (entity != null) {

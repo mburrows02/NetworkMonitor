@@ -9,11 +9,17 @@ import android.view.MenuItem;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.concurrent.TimeoutException;
+
+import com.stericson.RootShell.RootShell;
+import com.stericson.RootShell.exceptions.RootDeniedException;
+import com.stericson.RootShell.execution.Command;
 
 
 public class MainActivity extends ActionBarActivity {
-    private Process captureProc;
-    public static final String TAG = "NetworkMonitor";
+    //private Process captureProc;
+    private Command captureProc;
+    public static final String TAG = "NetMon";
     public static final int PACKETS = 20;
     public static final String FILE_DIR = "/sdcard/netlogs/";
     //TODO don't hard-code: Environment.getExternalStorageDirectory() + "/netlogs/";
@@ -75,11 +81,26 @@ public class MainActivity extends ActionBarActivity {
     }
 
     private void startCapture() {
-        String filename = FILE_DIR + "tcpdump_" + System.currentTimeMillis() + ".pcap";
-        String command = "tcpdump -c " + PACKETS + " -w " + filename + " \'tcp port 80 and " +
-                "(((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)\'";
-        Log.v(TAG, "Starting capture: " + command);
-        try {
+        if (captureProc == null) {
+            String filename = FILE_DIR + "tcpdump_" + System.currentTimeMillis() + ".pcap";
+            String commandStr = "tcpdump -w " + filename + " \'tcp port 80 and " +
+                    "(((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)\'";
+        /*String commandStr = "tcpdump -c " + PACKETS + " -w " + filename + " \'tcp port 80 and " +
+                "(((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)\'";*/
+            Log.v(TAG, "Starting capture: " + commandStr);
+            try {
+                captureProc = new Command(0, commandStr);
+                RootShell.getShell(true).add(captureProc);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (RootDeniedException e) {
+                e.printStackTrace();
+            } catch (TimeoutException e) {
+                e.printStackTrace();
+            }
+
+        }
+        /*try {
             captureProc = new ProcessBuilder().command("su").start();
             DataOutputStream os = new DataOutputStream(captureProc.getOutputStream());
             //DataInputStream is = new DataInputStream(captureProc.getInputStream());
@@ -89,14 +110,30 @@ public class MainActivity extends ActionBarActivity {
             Log.v(TAG, "Capture started");
         } catch (IOException e) {
             Log.e(TAG, "IOException while starting capture", e);
-        }
+        }*/
 
     }
 
     private void stopCapture() {
         Log.v(TAG, "Stopping capture");
         if (captureProc != null) {
+
             try {
+                Command kill = new Command(1, "pkill tcpdump");
+                RootShell.getShell(true).add(kill);
+                while (!kill.isFinished());
+                Log.v(TAG, "Kill command executed: " + kill.getExitCode());
+                captureProc.terminate();
+                RootShell.closeAllShells();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (RootDeniedException e) {
+                e.printStackTrace();
+            } catch (TimeoutException e) {
+                e.printStackTrace();
+            }
+
+            /*try {
                 DataOutputStream os = new DataOutputStream(captureProc.getOutputStream());
                 os.writeBytes("\u0003\n");
                 os.writeBytes("exit\n");
@@ -104,7 +141,7 @@ public class MainActivity extends ActionBarActivity {
             } catch (IOException e) {
                 Log.e(TAG, "IOException while stopping capture", e);
             }
-            captureProc.destroy();
+            captureProc.destroy();*/
         }
     }
 }
