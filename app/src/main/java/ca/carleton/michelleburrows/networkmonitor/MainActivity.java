@@ -83,7 +83,7 @@ public class MainActivity extends ActionBarActivity {
     private void startCapture() {
         if (captureProc == null) {
             String filename = FILE_DIR + "tcpdump_" + System.currentTimeMillis() + ".pcap";
-            String commandStr = "tcpdump -w " + filename + " \'tcp port 80 and " +
+            String commandStr = "tcpdump --packet-buffered -w " + filename + " \'tcp port 80 and " +
                     "(((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)\'";
         /*String commandStr = "tcpdump -c " + PACKETS + " -w " + filename + " \'tcp port 80 and " +
                 "(((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)\'";*/

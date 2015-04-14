@@ -31,6 +31,11 @@ public class FileListFragment extends Fragment {
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
         File dir = new File(MainActivity.FILE_DIR);
         String[] files = dir.list();
 

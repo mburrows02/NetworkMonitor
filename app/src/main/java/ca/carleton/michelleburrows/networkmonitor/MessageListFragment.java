@@ -26,6 +26,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -75,7 +76,7 @@ public class MessageListFragment extends Fragment {
             pcap.loop(handler);
             for (ReassembledPacket packet : handler.packets) {
                 Log.v(MainActivity.TAG, "Parsing packet " + packetList.size());
-                boolean outgoing = isLocalAddress(InetAddress.getByName(packet.getSrc()));
+                boolean outgoing = !isResponse(packet.getData());
                 String host = outgoing ? packet.getDst() : packet.getSrc();
                 String type = outgoing ? "Request to: " : "Response from: ";
                 Log.v(MainActivity.TAG, "\t" + type + host);
@@ -202,15 +203,12 @@ public class MessageListFragment extends Fragment {
         }
     };
 
-    private boolean isLocalAddress(InetAddress addr) {
-        if (addr.isAnyLocalAddress() || addr.isLoopbackAddress()) {
-            return true;
-        }
-
+    private boolean isResponse(byte[] data) {
         try {
-            return NetworkInterface.getByInetAddress(addr) != null;
-        } catch (SocketException e) {
-            return false;
+            return new String(data, "UTF-8").startsWith("HTTP");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
         }
+        return false;
     }
 }
