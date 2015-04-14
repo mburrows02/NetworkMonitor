@@ -16,6 +16,7 @@ import org.apache.httpcopy.HttpException;
 import org.apache.httpcopy.HttpRequest;
 import org.apache.httpcopy.HttpResponse;
 import org.apache.httpcopy.RequestLine;
+import org.apache.httpcopy.impl.io.ChunkedInputStream;
 import org.apache.httpcopy.impl.io.DefaultHttpRequestParser;
 import org.apache.httpcopy.impl.io.DefaultHttpResponseParser;
 import org.apache.httpcopy.impl.io.HttpTransportMetricsImpl;
@@ -33,6 +34,7 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.zip.GZIPInputStream;
 
 import io.pkts.Pcap;
 
@@ -167,7 +169,31 @@ public class MessageListFragment extends Fragment {
                             //String contentString = writer.toString();
                             messageMap.put(MainActivity.CONTENT, contentString);
                         } else {
-                            Log.v(MainActivity.TAG, "Entity is null!");
+                            StringBuilder contentBuilder = new StringBuilder();
+                            if (resp.containsHeader("Content-Type") && resp.getFirstHeader("Content-Type").getValue().contains("text") &&
+                                    resp.containsHeader("Transfer-Encoding") && resp.getFirstHeader("Transfer-Encoding").getValue().contains("chunked") &&
+                                    resp.containsHeader("Content-Encoding") && resp.getFirstHeader("Content-Encoding").getValue().contains("gzip")) {
+                                byte[] content = getContent(packet.getData());
+                                if (content.length > 0) {
+                                    InputStream byteIS = new ByteArrayInputStream(content);
+                                    SessionInputBufferImpl contentBuf = new SessionInputBufferImpl(new HttpTransportMetricsImpl(), content.length);
+                                    contentBuf.bind(byteIS);
+
+                                    ChunkedInputStream chunkedIS = new ChunkedInputStream(contentBuf);
+
+                                    GZIPInputStream gzipIS = new GZIPInputStream(chunkedIS);
+
+                                    while (gzipIS.available() != 0) {
+                                        byte[] buf = new byte[128];
+                                        gzipIS.read(buf);
+                                        contentBuilder.append(new String(buf, "UTF-8"));
+                                    }
+                                    gzipIS.close();
+                                    String contentString = contentBuilder.toString();
+                                    messageMap.put(MainActivity.CONTENT, contentString);
+
+                                }
+                            }
                         }
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -210,5 +236,24 @@ public class MessageListFragment extends Fragment {
             e.printStackTrace();
         }
         return false;
+    }
+
+
+    private byte[] getContent(byte[] message) {
+        int start = -1;
+        byte[] content = null;
+        for (int i = 0; i < message.length; ++i) {
+            if (start >= 0) {
+                content[i-start] = message[i];
+                continue;
+            }
+            System.out.print((char)message[i]);
+            if (message[i] == (byte) 13 && message[i+1]==(byte)10 && message[i+2] == (byte) 13 && message[i+3]==(byte)10 ) { //CR
+                start = i+4;
+                content = new byte[message.length-(i+4)];
+                i += 3;
+            }
+        }
+        return content;
     }
 }
