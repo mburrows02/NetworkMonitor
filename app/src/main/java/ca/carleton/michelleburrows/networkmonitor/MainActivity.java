@@ -17,16 +17,10 @@ import com.stericson.RootShell.execution.Command;
 
 
 public class MainActivity extends ActionBarActivity {
-    //private Process captureProc;
     private Command captureProc;
     public static final String TAG = "NetMon";
-    public static final int PACKETS = 20;
     public static final String FILE_DIR = "/sdcard/netlogs/";
-    //TODO don't hard-code: Environment.getExternalStorageDirectory() + "/netlogs/";
     public static final int TRUNCATE_POINT = 100;
-    //public static final String IS_REQUEST = "nm_isRequest";
-    //public static final String SOURCE = "nm_src";
-   // public static final String DESTINATION = "nm_dest";
 
     public static final String HOST = "nm_host";
     public static final String PATH = "nm_path";
@@ -35,8 +29,6 @@ public class MainActivity extends ActionBarActivity {
     public static final String CONTENT = "nm_content";
     public static final String REQ_HEADER = "qh_";
     public static final String RSP_HEADER = "ph_";
-
-    //public static final String HEADER_PREFIX = "h_";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,9 +77,6 @@ public class MainActivity extends ActionBarActivity {
             String filename = FILE_DIR + "tcpdump_" + System.currentTimeMillis() + ".pcap";
             String commandStr = "tcpdump --packet-buffered -w " + filename + " \'tcp port 80 and " +
                     "(((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)\'";
-        /*String commandStr = "tcpdump -c " + PACKETS + " -w " + filename + " \'tcp port 80 and " +
-                "(((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)\'";*/
-            Log.v(TAG, "Starting capture: " + commandStr);
             try {
                 captureProc = new Command(0, commandStr);
                 RootShell.getShell(true).add(captureProc);
@@ -100,29 +89,15 @@ public class MainActivity extends ActionBarActivity {
             }
 
         }
-        /*try {
-            captureProc = new ProcessBuilder().command("su").start();
-            DataOutputStream os = new DataOutputStream(captureProc.getOutputStream());
-            //DataInputStream is = new DataInputStream(captureProc.getInputStream());
-            os.writeBytes(command + "\n");
-            os.flush();
-
-            Log.v(TAG, "Capture started");
-        } catch (IOException e) {
-            Log.e(TAG, "IOException while starting capture", e);
-        }*/
-
     }
 
     private void stopCapture() {
-        Log.v(TAG, "Stopping capture");
         if (captureProc != null) {
 
             try {
                 Command kill = new Command(1, "pkill tcpdump");
                 RootShell.getShell(true).add(kill);
                 while (!kill.isFinished());
-                Log.v(TAG, "Kill command executed: " + kill.getExitCode());
                 captureProc.terminate();
                 RootShell.closeAllShells();
             } catch (IOException e) {
@@ -133,15 +108,6 @@ public class MainActivity extends ActionBarActivity {
                 e.printStackTrace();
             }
 
-            /*try {
-                DataOutputStream os = new DataOutputStream(captureProc.getOutputStream());
-                os.writeBytes("\u0003\n");
-                os.writeBytes("exit\n");
-                os.flush();
-            } catch (IOException e) {
-                Log.e(TAG, "IOException while stopping capture", e);
-            }
-            captureProc.destroy();*/
         }
     }
 }

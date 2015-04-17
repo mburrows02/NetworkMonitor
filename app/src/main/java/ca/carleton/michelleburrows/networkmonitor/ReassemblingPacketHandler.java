@@ -10,6 +10,8 @@ import io.pkts.packet.TCPPacket;
 import io.pkts.protocol.Protocol;
 
 /**
+ * Packet handler that attempts to reassemble messages that have been split into multiple
+ * fragments.
  * Created by Michelle on 4/9/2015.
  */
 public class ReassemblingPacketHandler implements PacketHandler {
@@ -26,17 +28,13 @@ public class ReassemblingPacketHandler implements PacketHandler {
         }
         TCPPacket pkt = (TCPPacket) arg0.getPacket(Protocol.TCP);
         int id = pkt.getIdentification();
-        //for (ReassembledPacket p : packets) {
         if (packets.size() > 0) {
             ReassembledPacket lastPacket = packets.get(packets.size() - 1);
             if (lastPacket.getNextId() == id) {
-                System.out.println("Adding to existing packet: id " + id);
                 lastPacket.addData(pkt.getPayload().getArray());
                 return;
             }
         }
-        //}
-        System.out.println("Creating new packet: id " + id);
         byte[] data = pkt.getPayload().getArray();
         ReassembledPacket packet = new ReassembledPacket(id, pkt.getSourceIP(), pkt.getDestinationIP(), data);
         packets.add(packet);

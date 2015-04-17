@@ -8,6 +8,7 @@ import android.widget.BaseAdapter;
 import android.widget.TextView;
 
 /**
+ * A list adapter that prints MessageSummary information on two lines.
  * Created by Michelle on 3/21/2015.
  */
 public class TwoLineListAdapter extends BaseAdapter {

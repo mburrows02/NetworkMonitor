@@ -1,6 +1,7 @@
 package ca.carleton.michelleburrows.networkmonitor;
 
 /**
+ * A reassembled HTTP message.
  * Created by Michelle on 4/9/2015.
  */
 public class ReassembledPacket {

@@ -10,6 +10,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 /**
+ * List adapter that places items in an accordion-style widget
  * Created by Michelle on 3/21/2015.
  */
 public class AccordionAdapter extends BaseAdapter {

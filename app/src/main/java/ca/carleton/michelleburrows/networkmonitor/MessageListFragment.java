@@ -39,6 +39,8 @@ import java.util.zip.GZIPInputStream;
 import io.pkts.Pcap;
 
 /**
+ * Fragment that parses a packet capture file, reconstructs HTTP messages, pairs requests
+ * and responses together, and lists message pairs.
  * Created by Michelle on 3/21/2015.
  */
 public class MessageListFragment extends Fragment {
@@ -67,7 +69,6 @@ public class MessageListFragment extends Fragment {
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
-        Log.v(MainActivity.TAG, "Parsing " + openFile);
         List<MessageSummary> packetList = new ArrayList<MessageSummary>();
         messageList = new ArrayList<HashMap<String, String>>();
         openReqIndices = new ArrayList<Integer>();
@@ -77,11 +78,9 @@ public class MessageListFragment extends Fragment {
             ReassemblingPacketHandler handler = new ReassemblingPacketHandler();
             pcap.loop(handler);
             for (ReassembledPacket packet : handler.packets) {
-                Log.v(MainActivity.TAG, "Parsing packet " + packetList.size());
                 boolean outgoing = !isResponse(packet.getData());
                 String host = outgoing ? packet.getDst() : packet.getSrc();
                 String type = outgoing ? "Request to: " : "Response from: ";
-                Log.v(MainActivity.TAG, "\t" + type + host);
 
                 HashMap<String, String> messageMap = null;
                 MessageSummary msgSummary = null;
@@ -113,11 +112,6 @@ public class MessageListFragment extends Fragment {
                 }
 
                 byte[] data = packet.getData();
-                /*try {
-                    Log.v(MainActivity.TAG, IOUtils.toString(data, "US-ASCII"));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }*/
                 SessionInputBufferImpl inBuffer = new SessionInputBufferImpl(new HttpTransportMetricsImpl(), data.length);
                 InputStream inStream = new ByteArrayInputStream(data);
                 inBuffer.bind(inStream);
@@ -132,7 +126,6 @@ public class MessageListFragment extends Fragment {
                         }
                         msgSummary.setMethod(reqLine.getMethod());
                         msgSummary.setPath(path);
-                        Log.v(MainActivity.TAG, "Request line: " + reqLine.toString());
 
                         messageMap.put(MainActivity.PATH, path);
                         messageMap.put(MainActivity.METHOD, reqLine.getMethod());
@@ -150,23 +143,17 @@ public class MessageListFragment extends Fragment {
                         HttpResponse resp = (HttpResponse) respParser.parse();
                         String status = resp.getStatusLine().getStatusCode() + " " + resp.getStatusLine().getReasonPhrase();
                         msgSummary.setStatus(status);
-                        Log.v(MainActivity.TAG, "Status line: " + resp.getStatusLine().toString());
 
                         messageMap.put(MainActivity.STATUS, status);
                         for (Header h : resp.getAllHeaders()) {
                             messageMap.put(MainActivity.RSP_HEADER + h.getName(), h.getValue());
                         }
-                        //Log.v(MainActivity.TAG, IOUtils.toString(data, "UTF-8"));
-                        StringWriter writer = new StringWriter();
                         HttpEntity entity = resp.getEntity();
                         if (entity != null) {
                             String encoding = entity.getContentEncoding().getValue();
                             byte[] buff = new byte[(int) entity.getContentLength()];
                             entity.getContent().read(buff);
                             String contentString = IOUtils.toString(buff, encoding);
-                            Log.v(MainActivity.TAG, "Response contents: " + contentString); //TODO ensure this is removed
-                            //IOUtils.copy(entity.getContent(), writer, encoding);
-                            //String contentString = writer.toString();
                             messageMap.put(MainActivity.CONTENT, contentString);
                         } else {
                             StringBuilder contentBuilder = new StringBuilder();

@@ -14,6 +14,7 @@ import android.widget.TextView;
 import java.io.File;
 
 /**
+ * The file list screen. Shows files in /sdcard/netlogs.
  * Created by Michelle on 3/21/2015.
  */
 public class FileListFragment extends Fragment {
@@ -48,7 +49,6 @@ public class FileListFragment extends Fragment {
         @Override
         public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
             String file = MainActivity.FILE_DIR + ((TextView) view).getText();
-            Log.v(MainActivity.TAG, "Opening file " + file);
             Bundle bundle = new Bundle();
             bundle.putString("filename", file);
             Fragment newFrag = new MessageListFragment();
